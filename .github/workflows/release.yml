@@ -33,12 +33,6 @@ jobs:
           sudo apt-get install ntp -y
           sudo ntptime -T 37
 
-      - name: Build
-        run: |
-          sbtn test:compile
-          sbtn multi-jvm:compile
-          sbtn makeSite
-
       - name: Unit and Component Tests
         run: |
           sbt -DenableCoverage=true -DgenerateStoryReport=true csw-time/test:test
@@ -60,40 +54,3 @@ jobs:
 
       - name: Multi-Jvm Tests
         run: sbt -DgenerateStoryReport=true integration/multi-jvm:test
-
-      - name: Generate RTM
-        if: always()
-        run: |
-          cs launch --channel https://raw.githubusercontent.com/tmtsoftware/osw-apps/master/apps.json rtm:d1c8c7e -- target/RTM/testStoryMapping.txt tools/RTM/cswStoryToRequirementMap.csv target/RTM/testRequirementsMapping.txt
-
-      - name: Upload RTM
-        if: always()
-        uses: actions/upload-artifact@v1
-        with:
-          name: RTM
-          path: target/RTM
-
-      - name: Github Release
-        run: sbt -Dprod.publish=true githubRelease
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-
-      - name: Docs Publish
-        run: |
-          echo 'echo $RELEASE_TOKEN' > /tmp/.git-askpass
-          chmod +x /tmp/.git-askpass
-          git config --global user.email "actions@github.com"
-          git config --global user.name "Github Action"
-          sbt -Dprod.publish=true clean ghpagesPushSite
-        env:
-          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-          GIT_ASKPASS: /tmp/.git-askpass
-
-      - name: Notify slack
-        if: always()
-        continue-on-error: true
-        uses: kpritam/slack-job-status-action@v1
-        with:
-          job-status: ${{ job.status }}
-          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
-          channel: ci-release
